@@ -1,0 +1,4 @@
+LIBRARY	main_window
+
+EXPORTS
+    Make

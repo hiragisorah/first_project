@@ -1,0 +1,5 @@
+LIBRARY	Script
+
+EXPORTS
+    Make
+	Destroy
