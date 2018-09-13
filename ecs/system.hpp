@@ -1,10 +1,8 @@
 #pragma once
 
-#include "node.hpp"
-
 namespace Seed
 {
-	class System : public Node
+	class System
 	{
 	public:
 		virtual bool Initialize(void) = 0;

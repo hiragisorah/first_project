@@ -8,25 +8,6 @@
 
 //static std::unordered_map<unsigned int, bool> _key_map;
 
-static LRESULT __stdcall WndProc(HWND hwnd, UINT i_msg, WPARAM w_param, LPARAM l_param)
-{
-	switch (i_msg)
-	{
-	case WM_DESTROY: PostQuitMessage(0); break;
-	case WM_ACTIVATEAPP:
-	case WM_KEYDOWN:
-		//_key_map[w_param] = true;
-		//break;
-	case WM_KEYUP:
-		//_key_map[w_param] = false;
-		//break;
-	case WM_SYSKEYUP: break;
-	default:
-		return DefWindowProc(hwnd, i_msg, w_param, l_param);
-	}
-	return 0;
-}
-
 class Seed::MainWindow::Impl
 {
 	friend Seed::MainWindow;

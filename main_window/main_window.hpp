@@ -3,18 +3,18 @@
 #ifdef _MAIN_WINDOW_DLL
 #define _MAIN_WINDOW_DLL_API __declspec(dllexport) 
 #else
-#define _MAIN_WINDOW_DLL_API
+#define _MAIN_WINDOW_DLL_API __declspec(dllimport)
 #endif
 
 #include <seed/module>
 #include <string>
 #include <memory>
 
-#pragma warning (disable: 4251)
+#pragma warning(disable: 4251)
 
 namespace Seed
 {
-	class MainWindow : public Seed::Module
+	class _MAIN_WINDOW_DLL_API MainWindow : public Seed::Module
 	{
 	public:
 		MainWindow(void);
