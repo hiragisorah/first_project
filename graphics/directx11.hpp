@@ -18,22 +18,26 @@ namespace Seed
 			~DirectX11(void);
 
 		public:
-			void Initialize(void * const handle, const float2 & size) override;
+			void Initialize(void * const handle, const Math::float2 & size) override;
 			void * const handle(void) const override;
-			const float2 & size(void) const override;
-			void ClearRenderTarget(const std::vector<int>& render_target_id_s) override;
+			const Math::float2 & size(void) const override;
+			void ClearRenderTarget(const std::vector<int>& render_target_id_s, const Math::color & color) override;
 			void ClearDepthStencil(const std::vector<int>& depth_stencil_id_s) override;
 			void SetRenderTargetAndDepthStencil(const std::vector<int>& render_target_id_s, const int & depth_stencil_id) override;
 			void SetViewPort(const std::vector<int>& view_port_id_s) override;
 			void SetShaderResourceFromRenderTarget(const int & start_slot, const std::vector<int>& render_target_id_s) override;
 			void SetShaderResourceFromTexture(const int & start_slot, const std::vector<int>& texture_id_s) override;
 			void SetShader(const int & shader_id) override;
-			void SetConstantBuffer(const int & shader_id, void * constant_buffer) override;
-			void SetWorld(const matrix & world) override;
-			void SetView(const matrix & view) override;
-			void SetProjection(const matrix & projection) override;
-			void SetDiffuse(const color & diffuse) override;
-			void Present() override;
+			void SetSampler(const int & sampler_id) override;
+			void SetWorld(const Math::matrix & world) override;
+			void SetView(const Math::matrix & view) override;
+			void SetProjection(const Math::matrix & projection) override;
+			void SetDiffuse(const Math::color & diffuse) override;
+			void UpdatePerCameraCB(void) override;
+			void UpdatePerMeshCB(void) override;
+			void UpdateUniqueCB(const int & shader_id) override;
+			void Present(void) override;
+			void * GetShaderVariable(const int & shader_id, const std::string & variable_name) override;
 			const int LoadRenderTargetBackBuffer(const int & width, const int & height) override;
 			const int LoadRenderTargetR32(const int & width, const int & height) override;
 			const int LoadRenderTargetRGBA32(const int & width, const int & height) override;
@@ -43,13 +47,15 @@ namespace Seed
 			const int LoadShader(const std::string & file_name) override;
 			const int LoadTexture(const std::string & file_name) override;
 			const int LoadMesh(const std::string & file_name) override;
+			const int LoadSampler(const Filter & filter, const AddressMode & address_mode) override;
 			void UnloadRenderTarget(const int & render_target_id) override;
 			void UnloadDepthsStencil(const int & depth_stencil_id) override;
 			void UnloadViewPort(const int & view_port_id) override;
 			void UnloadShader(const int & shader_id) override;
 			void UnloadTexture(const int & texture_id) override;
 			void UnloadMesh(const int & mesh_id) override;
-			const float2 GetTextureSize(const int & texture_id) const override;
+			void UnloadSampler(const int & sampler_id) override;
+			const Math::float2 GetTextureSize(const int & texture_id) const override;
 			void DrawVertices(const Topology & topology, const int & vertex_cnt) override;
 
 		private:

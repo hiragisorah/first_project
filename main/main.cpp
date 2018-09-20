@@ -1,11 +1,6 @@
-#include <seed/dll_loader>
-#include <seed/graphics>
-#include <seed/input>
-#include <seed/window>
+#include <Windows.h>
 #include <seed/engine>
-
-#include <iostream>
-#include <filesystem>
+#include <seed/command_list>
 
 int __stdcall WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
@@ -13,13 +8,15 @@ int __stdcall WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
-	Seed::Engine engine;
+	CommandList<std::unique_ptr<Seed::Engine>> command_list;
 
-	engine.Initialize();
+	command_list += [](auto & engine) { engine->Initialize(); };
+	command_list += [](auto & engine) { while (engine->Run()); };
+	command_list += [](auto & engine) { engine->Finalize(); };
+	
+	command_list += std::make_unique<Seed::Engine>();
 
-	while (engine.Run());
-
-	engine.Finalize();
+	command_list();
 
 	return 0;
 }
