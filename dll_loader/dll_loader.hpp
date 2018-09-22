@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <memory>
 #include <string>
+#include <iostream>
 
 namespace Seed
 {
@@ -31,7 +32,10 @@ namespace Seed
 		DLLLoader(const std::string & dll_path)
 			: dll_(LoadLibraryA(dll_path.c_str()))
 		{
-			this->make_ = (MakeFunc)GetProcAddress(this->dll_.get(), "Make");
+			if (!this->dll_)
+				MessageBoxA(nullptr, std::to_string(GetLastError()).c_str(), "", MB_OK);
+			else
+				this->make_ = (MakeFunc)GetProcAddress(this->dll_.get(), "Make");
 		}
 
 	public:

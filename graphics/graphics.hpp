@@ -34,6 +34,36 @@ namespace Seed
 			Border
 		};
 
+		enum class BlendType
+		{
+			Zero,
+			One,
+			SrcColor,
+			InvSrcColor,
+			SrcAlpha,
+			InvSrcAlpha,
+			DestAlpha,
+			InvDestAlpha,
+			DestColor,
+			InvDestColor,
+			SrcAlphaSat,
+			BlendFactor,
+			InvBlendFactor,
+			Src1Color,
+			InvSrc1Color,
+			Src1Alpha,
+			InvSrc1Alpha
+		};
+
+		enum class BlendOption
+		{
+			Add,
+			Subtract,
+			RevSubtract,
+			Min,
+			Max
+		};
+
 	public:
 		iGraphics(void) {};
 		iGraphics(iGraphics const&) = delete;
@@ -55,9 +85,9 @@ namespace Seed
 		virtual void SetViewPort(const std::vector<int> & view_port_id_s) = 0;
 		virtual void SetShaderResourceFromRenderTarget(const int & start_slot, const std::vector<int> & render_target_id_s) = 0;
 		virtual void SetShaderResourceFromTexture(const int & start_slot, const std::vector<int> & texture_id_s) = 0;
-		virtual void SetShaderResourceFromFont(const int & start_slot, const int font_id, const std::string & text) = 0;
 		virtual void SetShader(const int & shader_id) = 0;
 		virtual void SetSampler(const int & sampler_id) = 0;
+		virtual void SetBlend(const int & blend_id) = 0;
 		virtual void SetWorld(const Math::matrix & world) = 0;
 		virtual void SetView(const Math::matrix & view) = 0;
 		virtual void SetProjection(const Math::matrix & projection) = 0;
@@ -81,26 +111,24 @@ namespace Seed
 		virtual const int LoadRenderTargetR32(const int & width, const int & height) = 0;
 		virtual const int LoadRenderTargetRGBA32(const int & width, const int & height) = 0;
 		virtual const int LoadRenderTargetRGBA128(const int & width, const int & height) = 0;
-
 		virtual const int LoadDepthsStencil(const int & width, const int & height) = 0;
-
 		virtual const int LoadViewPort(const int & width, const int & height) = 0;
-
 		virtual const int LoadShader(const std::string & file_name) = 0;
 		virtual const int LoadTexture(const std::string & file_name) = 0;
+		virtual const int LoadTextureFromFont(const int & font_id, const std::string & text, const int & size) = 0;
 		virtual const int LoadMesh(const std::string & file_name) = 0;
 		virtual const int LoadFont(const std::string & file_name) = 0;
-
 		virtual const int LoadSampler(const Filter & filter, const AddressMode & address_mode) = 0;
-
+		virtual const int LoadBlend(const BlendOption & blend_option, const BlendType & src, const BlendType & dest) = 0;
 		virtual void UnloadRenderTarget(const int & render_target_id) = 0;
 		virtual void UnloadDepthsStencil(const int & depth_stencil_id) = 0;
 		virtual void UnloadViewPort(const int & view_port_id) = 0;
 		virtual void UnloadShader(const int & shader_id) = 0;
 		virtual void UnloadTexture(const int & texture_id) = 0;
 		virtual void UnloadMesh(const int & mesh_id) = 0;
-		virtual void UnloadSampler(const int & sampler_id) = 0;
 		virtual void UnloadFont(const int & font_id) = 0;
+		virtual void UnloadSampler(const int & sampler_id) = 0;
+		virtual void UnloadBlend(const int & blend_id) = 0;
 
 		virtual const Math::float2 GetTextureSize(const int & texture_id) const = 0;
 

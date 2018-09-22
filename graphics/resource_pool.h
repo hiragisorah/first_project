@@ -42,5 +42,9 @@ namespace Seed
 		{
 			return this->database_[num];
 		}
+		void UnloadAll(void)
+		{
+			this->database_.clear();
+		}
 	};
 }

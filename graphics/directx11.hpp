@@ -1,6 +1,7 @@
 #pragma once
 
 #include <seed/graphics>
+#include <seed/math>
 
 #include <memory>
 
@@ -29,6 +30,7 @@ namespace Seed
 			void SetShaderResourceFromTexture(const int & start_slot, const std::vector<int>& texture_id_s) override;
 			void SetShader(const int & shader_id) override;
 			void SetSampler(const int & sampler_id) override;
+			void SetBlend(const int & blend_id) override;
 			void SetWorld(const Math::matrix & world) override;
 			void SetView(const Math::matrix & view) override;
 			void SetProjection(const Math::matrix & projection) override;
@@ -46,15 +48,20 @@ namespace Seed
 			const int LoadViewPort(const int & width, const int & height) override;
 			const int LoadShader(const std::string & file_name) override;
 			const int LoadTexture(const std::string & file_name) override;
+			const int LoadTextureFromFont(const int & font_id, const std::string & text, const int & size) override;
+			const int LoadFont(const std::string & file_name) override;
 			const int LoadMesh(const std::string & file_name) override;
 			const int LoadSampler(const Filter & filter, const AddressMode & address_mode) override;
+			const int LoadBlend(const BlendOption & blend_option, const BlendType & src, const BlendType & dest) override;
 			void UnloadRenderTarget(const int & render_target_id) override;
 			void UnloadDepthsStencil(const int & depth_stencil_id) override;
 			void UnloadViewPort(const int & view_port_id) override;
 			void UnloadShader(const int & shader_id) override;
 			void UnloadTexture(const int & texture_id) override;
+			void UnloadFont(const int & font_id) override;
 			void UnloadMesh(const int & mesh_id) override;
 			void UnloadSampler(const int & sampler_id) override;
+			void UnloadBlend(const int & blend_id) override;
 			const Math::float2 GetTextureSize(const int & texture_id) const override;
 			void DrawVertices(const Topology & topology, const int & vertex_cnt) override;
 

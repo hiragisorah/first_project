@@ -30,6 +30,7 @@ namespace Seed
 		private:
 			Math::float2 * bg_scale_;
 			Math::float2 * bg_scroll_;
+
 		};
 	}
 }

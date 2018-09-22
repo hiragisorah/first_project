@@ -1,8 +1,10 @@
-#include "directx11.hpp"
+ï»¿#include "directx11.hpp"
 #include <d3d11.h>
 #include <d3dcompiler.h>
 #include <wrl/client.h>
 #include <DirectXTex.h>
+#include <ft2build.h>
+#include <freetype/freetype.h>
 
 #include <unordered_map>
 
@@ -24,6 +26,7 @@ static constexpr DWORD SHADER_FLAGS = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_
 namespace Seed
 {
 	static constexpr const char * k_texture_dir = "../data/texture/";
+	static constexpr const char * k_font_dir = "../data/font/";
 	static constexpr const char * k_shader_dir = "../data/shader/";
 	static constexpr const char * k_mesh_dir = "../data/mesh/";
 
@@ -51,6 +54,36 @@ namespace Seed
 		D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_MIRROR_ONCE,
 		D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_BORDER
 	};
+
+	static constexpr const D3D11_BLEND k_blend_type_s[] =
+	{
+		D3D11_BLEND::D3D11_BLEND_ZERO,
+		D3D11_BLEND::D3D11_BLEND_ONE,
+		D3D11_BLEND::D3D11_BLEND_SRC_COLOR,
+		D3D11_BLEND::D3D11_BLEND_INV_SRC_COLOR,
+		D3D11_BLEND::D3D11_BLEND_SRC_ALPHA,
+		D3D11_BLEND::D3D11_BLEND_INV_SRC_ALPHA,
+		D3D11_BLEND::D3D11_BLEND_DEST_ALPHA,
+		D3D11_BLEND::D3D11_BLEND_INV_DEST_ALPHA,
+		D3D11_BLEND::D3D11_BLEND_DEST_COLOR,
+		D3D11_BLEND::D3D11_BLEND_INV_DEST_COLOR,
+		D3D11_BLEND::D3D11_BLEND_SRC_ALPHA_SAT,
+		D3D11_BLEND::D3D11_BLEND_BLEND_FACTOR,
+		D3D11_BLEND::D3D11_BLEND_INV_BLEND_FACTOR,
+		D3D11_BLEND::D3D11_BLEND_SRC1_COLOR,
+		D3D11_BLEND::D3D11_BLEND_INV_SRC1_COLOR,
+		D3D11_BLEND::D3D11_BLEND_SRC1_ALPHA,
+		D3D11_BLEND::D3D11_BLEND_INV_SRC1_ALPHA
+	};
+
+	static constexpr const D3D11_BLEND_OP k_blend_option_s[] =
+	{
+		D3D11_BLEND_OP::D3D11_BLEND_OP_ADD,
+		D3D11_BLEND_OP::D3D11_BLEND_OP_SUBTRACT,
+		D3D11_BLEND_OP::D3D11_BLEND_OP_REV_SUBTRACT,
+		D3D11_BLEND_OP::D3D11_BLEND_OP_MIN,
+		D3D11_BLEND_OP::D3D11_BLEND_OP_MAX
+	};
 }
 
 using Device = Microsoft::WRL::ComPtr<ID3D11Device>;
@@ -73,6 +106,7 @@ using VertexBuffer = Microsoft::WRL::ComPtr<ID3D11Buffer>;
 using InputLayout = Microsoft::WRL::ComPtr<ID3D11InputLayout>;
 
 using SamplerState = Microsoft::WRL::ComPtr<ID3D11SamplerState>;
+using BlendState = Microsoft::WRL::ComPtr<ID3D11BlendState>;
 
 class Seed::Graphics::DirectX11::Impl
 {
@@ -115,6 +149,17 @@ class Seed::Graphics::DirectX11::Impl
 		Math::float2 size_;
 	};
 
+	struct Font
+	{
+		FT_Face face_;
+
+		~Font(void)
+		{
+			if(face_)
+				FT_Done_Face(face_);
+		}
+	};
+
 	struct Shader
 	{
 		VertexShader vs_;
@@ -130,7 +175,7 @@ class Seed::Graphics::DirectX11::Impl
 		unsigned int variables_size_;
 		std::unordered_map<std::string, void*> variables_map_;
 
-		~Shader(void) { if(this->variables_) delete[] this->variables_; }
+		~Shader(void) { if (this->variables_) delete[] this->variables_; }
 	};
 
 	struct Mesh
@@ -147,6 +192,18 @@ class Seed::Graphics::DirectX11::Impl
 		SamplerState sampler_state_;
 	};
 
+	struct Blend
+	{
+		BlendState blend_state_;
+	};
+
+public:
+	~Impl(void)
+	{
+		this->font_db_.UnloadAll();
+		FT_Done_FreeType(this->ft_library_);
+	}
+
 private:
 	Context context_;
 	Device device_;
@@ -162,8 +219,10 @@ private:
 	ResourcePool<ViewPort> view_port_db_;
 	ResourcePool<Shader> shader_db_;
 	ResourcePool<Texture> texture_db_;
+	ResourcePool<Font> font_db_;
 	ResourcePool<Mesh> mesh_db_;
 	ResourcePool<Sampler> sampler_db_;
+	ResourcePool<Blend> blend_db_;
 
 private:
 	PerCameraCB per_camera_;
@@ -172,6 +231,9 @@ private:
 private:
 	ConstantBuffer per_camera_cb_;
 	ConstantBuffer per_mesh_cb_;
+
+private:
+	FT_Library ft_library_;
 
 public:
 	static void CreateConstantBufferFromShader(const Context & device_context, std::unique_ptr<Shader> & shader, ID3DBlob * blob);
@@ -186,7 +248,6 @@ Seed::Graphics::DirectX11::DirectX11(void)
 
 Seed::Graphics::DirectX11::~DirectX11(void)
 {
-
 }
 
 void Seed::Graphics::DirectX11::Initialize(void * const handle, const Math::float2 & size)
@@ -198,7 +259,7 @@ void Seed::Graphics::DirectX11::Initialize(void * const handle, const Math::floa
 
 	auto & self = this->impl_;
 
-	// ƒfƒoƒCƒX‚ÆƒXƒƒbƒvƒ`ƒF[ƒ“‚Ìì¬ 
+	// ãƒ‡ãƒã‚¤ã‚¹ã¨ã‚¹ãƒ¯ãƒƒãƒ—ãƒã‚§ãƒ¼ãƒ³ã®ä½œæˆ 
 	DXGI_SWAP_CHAIN_DESC sd;
 	memset(&sd, 0, sizeof(sd));
 	sd.BufferCount = 1;
@@ -262,60 +323,7 @@ void Seed::Graphics::DirectX11::Initialize(void * const handle, const Math::floa
 	self->context_->DSSetConstantBuffers(2, 1, self->per_mesh_cb_.GetAddressOf());
 	self->context_->PSSetConstantBuffers(2, 1, self->per_mesh_cb_.GetAddressOf());
 
-	//Microsoft::WRL::ComPtr<ID3D11BlendState> blend_state;
-
-	//D3D11_BLEND_DESC blend_desc = {};
-
-	//blend_desc.AlphaToCoverageEnable = false;
-	//blend_desc.IndependentBlendEnable = false;
-
-	//blend_desc.RenderTarget[0].BlendEnable = true;
-	//blend_desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-	//blend_desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-	//blend_desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-	//blend_desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-	//blend_desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-	//blend_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	//blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-
-	//device->CreateBlendState(&blend_desc, blend_state.GetAddressOf());
-
-	//self->context_->OMSetBlendState(blend_state.Get(), nullptr, 0xffffffff);
-
-	//{
-	//	D3D11_RASTERIZER_DESC desc = {};
-	//	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rs;
-
-	//	desc.CullMode = D3D11_CULL_BACK;
-	//	desc.FillMode = D3D11_FILL_WIREFRAME;
-	//	desc.DepthClipEnable = true;
-	//	desc.MultisampleEnable = true;
-	//	desc.FillMode = D3D11_FILL_SOLID;
-
-	//	device->CreateRasterizerState(&desc, rs.GetAddressOf());
-	//	this->impl_->context_->RSSetState(rs.Get());
-	//}
-
-	//{
-	//	D3D11_SAMPLER_DESC desc = {};
-	//	Microsoft::WRL::ComPtr<ID3D11SamplerState> ss;
-
-	//	desc.Filter = D3D11_FILTER::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
-	//	desc.AddressU = D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_WRAP;
-	//	desc.AddressV = D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_WRAP;
-	//	desc.AddressW = D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_WRAP;
-	//	desc.MipLODBias = 0;
-	//	desc.MaxAnisotropy = 1;
-	//	desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-	//	desc.BorderColor[0] = 0;
-	//	desc.BorderColor[1] = 0;
-	//	desc.BorderColor[2] = 0;
-	//	desc.BorderColor[3] = 0;
-	//	desc.MinLOD = 0;
-	//	desc.MaxLOD = D3D11_FLOAT32_MAX;
-	//	device->CreateSamplerState(&desc, ss.GetAddressOf());
-	//	this->impl_->context_->PSSetSamplers(0, 1, ss.GetAddressOf());
-	//}
+	FT_Init_FreeType(&this->impl_->ft_library_);
 }
 
 void * const Seed::Graphics::DirectX11::handle(void) const
@@ -420,6 +428,12 @@ void Seed::Graphics::DirectX11::SetSampler(const int & sampler_id)
 {
 	auto & sampler = this->impl_->sampler_db_.Get(sampler_id);
 	this->impl_->context_->PSSetSamplers(0, 1, sampler->sampler_state_.GetAddressOf());
+}
+
+void Seed::Graphics::DirectX11::SetBlend(const int & blend_id)
+{
+	auto & blend = this->impl_->blend_db_.Get(blend_id);
+	this->impl_->context_->OMSetBlendState(blend->blend_state_.Get(), nullptr, 0xffffffff);
 }
 
 void Seed::Graphics::DirectX11::SetWorld(const Math::matrix & world)
@@ -659,7 +673,7 @@ const int Seed::Graphics::DirectX11::LoadViewPort(const int & width, const int &
 	view_port->vp_.MinDepth = 0.f;
 	view_port->vp_.TopLeftX = 0;
 	view_port->vp_.TopLeftY = 0;
-	
+
 	return self->view_port_db_.Load(view_port);
 }
 
@@ -740,7 +754,7 @@ const int Seed::Graphics::DirectX11::LoadShader(const std::string & file_name)
 			//if (error != nullptr)
 			//	std::cout << __FUNCTION__ << "::" << err << std::endl;
 			//else
-			//	std::cout << __FUNCTION__ << "::ƒVƒF[ƒ_[‚Ì“Ç‚Ýž‚Ý‚ÉŽ¸”s‚µ‚Ü‚µ‚½B" << std::endl;
+			//	std::cout << __FUNCTION__ << "::ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®èª­ã¿è¾¼ã¿ã«å¤±æ•—ã—ã¾ã—ãŸã€‚" << std::endl;
 		}
 	}
 	else
@@ -807,6 +821,130 @@ const int Seed::Graphics::DirectX11::LoadTexture(const std::string & file_name)
 	return this->impl_->texture_db_.Load(texture);
 }
 
+#include <filesystem>
+
+static inline std::u16string to16string(const std::string & str)
+{
+	std::filesystem::path tmp = str;
+
+	return tmp.u16string();
+}
+
+struct int2
+{
+	int x, y;
+};
+
+#undef max
+
+const int Seed::Graphics::DirectX11::LoadTextureFromFont(const int & font_id, const std::string & text, const int & size)
+{
+	Microsoft::WRL::ComPtr<ID3D11Device> device;
+
+	this->impl_->context_->GetDevice(device.GetAddressOf());
+
+	auto texture = std::make_unique<Impl::Texture>();
+
+	auto & face = this->impl_->font_db_.Get(font_id)->face_;
+
+	FT_Size_RequestRec ft_size_req = {};
+
+	ft_size_req.type = FT_SIZE_REQUEST_TYPE_NOMINAL;
+	ft_size_req.height = (size << 6);
+
+	FT_Request_Size(face, &ft_size_req);
+
+	auto image = std::make_unique<DirectX::ScratchImage>();
+
+	int max_width = 0;
+	int max_height = 0;
+	int max_top = 0;
+
+	auto tt = to16string(text);
+
+	for (unsigned int i = 0; i < tt.size(); ++i)
+	{
+		FT_Long c = tt[i];
+		//ReadNextCode(c, i, text);
+		FT_Load_Char(face, c, FT_LOAD_DEFAULT);
+		FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
+
+		max_width += face->glyph->metrics.horiAdvance >> 6;
+
+		max_height = std::max(max_height, (int)(face->glyph->metrics.height >> 6));
+
+		max_top = std::max(max_top, (int)(face->glyph->metrics.horiBearingY >> 6));
+	}
+
+	DirectX::Image img;
+	img.width = max_width;
+	img.height = max_height;
+	img.rowPitch = img.width * 4;
+	img.format = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+	img.pixels = new uint8_t[img.rowPitch * img.height];
+	img.slicePitch = img.height * img.rowPitch;
+
+
+	memset(img.pixels, 0, sizeof(uint8_t) * img.rowPitch * img.height);
+
+	int2 save = { 0,0 };
+
+	for (unsigned int i = 0; i < tt.size(); ++i)
+	{
+		FT_Long c = tt[i];
+		FT_Load_Char(face, c, FT_LOAD_DEFAULT);
+		FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
+
+		FT_Bitmap * bmp = &face->glyph->bitmap;
+
+		int2 pos = save;
+
+		pos.x = pos.x + (face->glyph->metrics.horiBearingX >> 6);
+		pos.y = max_top - face->glyph->bitmap_top;
+
+		for (unsigned int y = 0; y < bmp->rows; ++y)
+		{
+			for (unsigned int x = 0; x < bmp->width; ++x)
+			{
+				auto tmp = ((pos.x + x) * 4 + 0) + (pos.y + y) * img.rowPitch;
+				if (tmp > img.height * img.rowPitch) continue;
+				img.pixels[tmp] = 0xffui8;
+				tmp = ((pos.x + x) * 4 + 1) + (pos.y + y) * img.rowPitch;
+				if (tmp > img.height * img.rowPitch) continue;
+				img.pixels[tmp] = 0xffui8;
+				tmp = ((pos.x + x) * 4 + 2) + (pos.y + y) * img.rowPitch;
+				if (tmp > img.height * img.rowPitch) continue;
+				img.pixels[tmp] = 0xffui8;
+				tmp = ((pos.x + x) * 4 + 3) + (pos.y + y) * img.rowPitch;
+				if (tmp > img.height * img.rowPitch) continue;
+				img.pixels[tmp] = bmp->buffer[x + y * bmp->pitch];
+			}
+		}
+		
+		save.x += face->glyph->metrics.horiAdvance >> 6;
+	}
+
+	image->InitializeFromImage(img);
+	
+	texture->size_.x = static_cast<float>(image->GetMetadata().width);
+	texture->size_.y = static_cast<float>(image->GetMetadata().height);
+
+	DirectX::CreateShaderResourceView(device.Get(), image->GetImages(), image->GetImageCount(), image->GetMetadata(), texture->srv_.GetAddressOf());
+	delete[] img.pixels;
+	return this->impl_->texture_db_.Load(texture);
+}
+
+const int Seed::Graphics::DirectX11::LoadFont(const std::string & file_name)
+{
+	auto file_path = k_font_dir + file_name;
+
+	auto font = std::make_unique<Impl::Font>();
+
+	FT_New_Face(this->impl_->ft_library_, file_path.c_str(), 0, &font->face_);
+
+	return this->impl_->font_db_.Load(font);
+}
+
 const int Seed::Graphics::DirectX11::LoadMesh(const std::string & file_name)
 {
 	auto file_path = k_mesh_dir + file_name;
@@ -842,6 +980,29 @@ const int Seed::Graphics::DirectX11::LoadSampler(const Filter & filter, const Ad
 	return this->impl_->sampler_db_.Load(sampler);
 }
 
+const int Seed::Graphics::DirectX11::LoadBlend(const BlendOption & blend_option, const BlendType & src, const BlendType & dest)
+{
+	Microsoft::WRL::ComPtr<ID3D11Device> device;
+
+	this->impl_->context_->GetDevice(device.GetAddressOf());
+
+	auto blend = std::make_unique<Impl::Blend>();
+
+	D3D11_BLEND_DESC desc = {};
+
+	desc.RenderTarget[0].BlendEnable = true;
+
+	desc.RenderTarget[0].SrcBlend = desc.RenderTarget[0].SrcBlendAlpha = k_blend_type_s[static_cast<unsigned int>(src)];
+	desc.RenderTarget[0].DestBlend = desc.RenderTarget[0].DestBlendAlpha = k_blend_type_s[static_cast<unsigned int>(dest)];
+	desc.RenderTarget[0].BlendOp = desc.RenderTarget[0].BlendOpAlpha = k_blend_option_s[static_cast<unsigned int>(blend_option)];
+
+	desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	device->CreateBlendState(&desc, blend->blend_state_.GetAddressOf());
+
+	return this->impl_->blend_db_.Load(blend);
+}
+
 void Seed::Graphics::DirectX11::UnloadRenderTarget(const int & render_target_id)
 {
 	this->impl_->render_target_db_.Unload(render_target_id);
@@ -867,6 +1028,11 @@ void Seed::Graphics::DirectX11::UnloadTexture(const int & texture_id)
 	this->impl_->texture_db_.Unload(texture_id);
 }
 
+void Seed::Graphics::DirectX11::UnloadFont(const int & font_id)
+{
+	this->impl_->font_db_.Unload(font_id);
+}
+
 void Seed::Graphics::DirectX11::UnloadMesh(const int & mesh_id)
 {
 	this->impl_->mesh_db_.Unload(mesh_id);
@@ -875,6 +1041,11 @@ void Seed::Graphics::DirectX11::UnloadMesh(const int & mesh_id)
 void Seed::Graphics::DirectX11::UnloadSampler(const int & sampler_id)
 {
 	this->impl_->sampler_db_.Unload(sampler_id);
+}
+
+void Seed::Graphics::DirectX11::UnloadBlend(const int & blend_id)
+{
+	this->impl_->blend_db_.Unload(blend_id);
 }
 
 const Seed::Math::float2 Seed::Graphics::DirectX11::GetTextureSize(const int & texture_id) const
