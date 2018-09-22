@@ -23,16 +23,14 @@ void Seed::NodeSystem::SimpleNodeSystem::DrawBackground(void)
 
 	auto screen_size = this->graphics_->size();
 
-	float2 size = this->graphics_->GetTextureSize(this->bg_tex_) * 0.1f;
+	float2 size = this->graphics_->GetTextureSize(this->bg_tex_) * .2f;
 
 	auto view_pos = float2(0, 0);
 
-	*this->bg_scale_ = float2(screen_size.x / size.x, screen_size.y / size.y) * .5f;
+	*this->bg_scale_ = float2(screen_size.x / size.x, screen_size.y / size.y);
 	*this->bg_scroll_ = float2(-view_pos.x / size.x / 2, view_pos.y / size.y / 2);
 
 	this->graphics_->SetShader(this->repeat_shader_);
-
-	this->graphics_->SetDiffuse(DirectX::Color(1, 1, 1, 1));
 
 	this->graphics_->SetShaderResourceFromTexture(0, { this->bg_tex_ });
 

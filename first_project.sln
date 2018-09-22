@@ -39,6 +39,15 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "node_system", "node_system\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freetype", "..\freetype\sln\freetype.vcxproj", "{9AC899E8-D361-3FB4-8C2B-2D5A843858F9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "resources", "resources", "{FF4588FE-4A7C-43AC-8797-D012A37D4B29}"
+	ProjectSection(SolutionItems) = preProject
+		data\shader\default_2d.hlsl = data\shader\default_2d.hlsl
+		data\shader\nine_patch.hlsl = data\shader\nine_patch.hlsl
+		data\shader\repeat.hlsl = data\shader\repeat.hlsl
+		data\shader\smooth_line.hlsl = data\shader\smooth_line.hlsl
+		data\shader\template.hlsli = data\shader\template.hlsli
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

@@ -35,6 +35,7 @@ namespace Seed
 			void SetView(const Math::matrix & view) override;
 			void SetProjection(const Math::matrix & projection) override;
 			void SetDiffuse(const Math::color & diffuse) override;
+			void SetColor(const Math::color & color) override;
 			void UpdatePerCameraCB(void) override;
 			void UpdatePerMeshCB(void) override;
 			void UpdateUniqueCB(const int & shader_id) override;
@@ -52,7 +53,7 @@ namespace Seed
 			const int LoadFont(const std::string & file_name) override;
 			const int LoadMesh(const std::string & file_name) override;
 			const int LoadSampler(const Filter & filter, const AddressMode & address_mode) override;
-			const int LoadBlend(const BlendOption & blend_option, const BlendType & src, const BlendType & dest) override;
+			const int LoadBlend(const BlendOption & blend_option, const BlendType & src, const BlendType & dest, const BlendOption & blend_option_a, const BlendType & src_a, const BlendType & dest_a) override;
 			void UnloadRenderTarget(const int & render_target_id) override;
 			void UnloadDepthsStencil(const int & depth_stencil_id) override;
 			void UnloadViewPort(const int & view_port_id) override;

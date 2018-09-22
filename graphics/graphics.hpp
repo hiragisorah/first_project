@@ -92,6 +92,7 @@ namespace Seed
 		virtual void SetView(const Math::matrix & view) = 0;
 		virtual void SetProjection(const Math::matrix & projection) = 0;
 		virtual void SetDiffuse(const Math::color & diffuse) = 0;
+		virtual void SetColor(const Math::color & color) = 0;
 		virtual void UpdatePerCameraCB(void) = 0;
 		virtual void UpdatePerMeshCB(void) = 0;
 		virtual void UpdateUniqueCB(const int & shader_id) = 0;
@@ -119,7 +120,7 @@ namespace Seed
 		virtual const int LoadMesh(const std::string & file_name) = 0;
 		virtual const int LoadFont(const std::string & file_name) = 0;
 		virtual const int LoadSampler(const Filter & filter, const AddressMode & address_mode) = 0;
-		virtual const int LoadBlend(const BlendOption & blend_option, const BlendType & src, const BlendType & dest) = 0;
+		virtual const int LoadBlend(const BlendOption & blend_option, const BlendType & src, const BlendType & dest, const BlendOption & blend_option_a, const BlendType & src_a, const BlendType & dest_a) = 0;
 		virtual void UnloadRenderTarget(const int & render_target_id) = 0;
 		virtual void UnloadDepthsStencil(const int & depth_stencil_id) = 0;
 		virtual void UnloadViewPort(const int & view_port_id) = 0;

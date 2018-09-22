@@ -114,14 +114,26 @@ class Seed::Graphics::DirectX11::Impl
 
 	struct PerCameraCB
 	{
+		PerCameraCB(void)
+			: view_(Math::matrix::Identity)
+			, projection_(Math::matrix::Identity)
+			, color_(Math::color(1, 1, 1, 1))
+			, view_port_(Math::float2(0, 0))
+		{}
+
 		Math::matrix view_;
 		Math::matrix projection_;
-		__declspec(align(16)) Math::float2 view_port_;
 		Math::color color_;
+		__declspec(align(16)) Math::float2 view_port_;
 	};
 
 	struct PerMeshCB
 	{
+		PerMeshCB(void)
+			: world_(Math::matrix::Identity)
+			, diffuse_(Math::color(1, 1, 1, 1))
+		{}
+
 		Math::matrix world_;
 		Math::color diffuse_;
 	};
@@ -290,9 +302,7 @@ void Seed::Graphics::DirectX11::Initialize(void * const handle, const Math::floa
 		bd.StructureByteStride = 0;
 		bd.Usage = D3D11_USAGE_DEFAULT;
 
-		if (FAILED(device->CreateBuffer(&bd, nullptr, self->per_camera_cb_.GetAddressOf())))
-		{
-		}
+		device->CreateBuffer(&bd, nullptr, self->per_camera_cb_.GetAddressOf());
 	}
 
 	{
@@ -304,24 +314,54 @@ void Seed::Graphics::DirectX11::Initialize(void * const handle, const Math::floa
 		bd.StructureByteStride = 0;
 		bd.Usage = D3D11_USAGE_DEFAULT;
 
-		if (FAILED(device->CreateBuffer(&bd, nullptr, self->per_mesh_cb_.GetAddressOf())))
-		{
-		}
+		device->CreateBuffer(&bd, nullptr, self->per_mesh_cb_.GetAddressOf());
 	}
 
-	self->context_->UpdateSubresource(self->per_camera_cb_.Get(), 0, nullptr, &self->per_camera_, 0, 0);
 	self->context_->VSSetConstantBuffers(1, 1, self->per_camera_cb_.GetAddressOf());
 	self->context_->GSSetConstantBuffers(1, 1, self->per_camera_cb_.GetAddressOf());
 	self->context_->HSSetConstantBuffers(1, 1, self->per_camera_cb_.GetAddressOf());
 	self->context_->DSSetConstantBuffers(1, 1, self->per_camera_cb_.GetAddressOf());
 	self->context_->PSSetConstantBuffers(1, 1, self->per_camera_cb_.GetAddressOf());
 
-	self->context_->UpdateSubresource(self->per_mesh_cb_.Get(), 0, nullptr, &self->per_mesh_, 0, 0);
 	self->context_->VSSetConstantBuffers(2, 1, self->per_mesh_cb_.GetAddressOf());
 	self->context_->GSSetConstantBuffers(2, 1, self->per_mesh_cb_.GetAddressOf());
 	self->context_->HSSetConstantBuffers(2, 1, self->per_mesh_cb_.GetAddressOf());
 	self->context_->DSSetConstantBuffers(2, 1, self->per_mesh_cb_.GetAddressOf());
 	self->context_->PSSetConstantBuffers(2, 1, self->per_mesh_cb_.GetAddressOf());
+
+	{
+		D3D11_RASTERIZER_DESC desc = {};
+		Microsoft::WRL::ComPtr<ID3D11RasterizerState> rs;
+
+		desc.CullMode = D3D11_CULL_BACK;
+		desc.FillMode = D3D11_FILL_WIREFRAME;
+		desc.DepthClipEnable = true;
+		desc.MultisampleEnable = true;
+		desc.FillMode = D3D11_FILL_SOLID;
+
+		device->CreateRasterizerState(&desc, rs.GetAddressOf());
+		this->impl_->context_->RSSetState(rs.Get());
+	}
+
+	Microsoft::WRL::ComPtr<ID3D11BlendState> blend_state;
+
+	D3D11_BLEND_DESC blend_desc = {};
+
+	blend_desc.AlphaToCoverageEnable = false;
+	blend_desc.IndependentBlendEnable = false;
+
+	blend_desc.RenderTarget[0].BlendEnable = true;
+	blend_desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blend_desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blend_desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blend_desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blend_desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	blend_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	device->CreateBlendState(&blend_desc, blend_state.GetAddressOf());
+
+	self->context_->OMSetBlendState(blend_state.Get(), nullptr, 0xffffffff);
 
 	FT_Init_FreeType(&this->impl_->ft_library_);
 }
@@ -456,6 +496,11 @@ void Seed::Graphics::DirectX11::SetDiffuse(const Math::color & diffuse)
 	this->impl_->per_mesh_.diffuse_ = diffuse;
 }
 
+void Seed::Graphics::DirectX11::SetColor(const Math::color & color)
+{
+	this->impl_->per_camera_.color_ = color;
+}
+
 void Seed::Graphics::DirectX11::UpdatePerCameraCB(void)
 {
 	this->impl_->context_->UpdateSubresource(this->impl_->per_camera_cb_.Get(), 0, nullptr, &this->impl_->per_camera_, 0, 0);
@@ -474,7 +519,7 @@ void Seed::Graphics::DirectX11::UpdateUniqueCB(const int & shader_id)
 
 void Seed::Graphics::DirectX11::Present()
 {
-	this->impl_->swap_chain_->Present(0, 0);
+	this->impl_->swap_chain_->Present(1, 0);
 }
 
 void * Seed::Graphics::DirectX11::GetShaderVariable(const int & shader_id, const std::string & variable_name)
@@ -865,9 +910,7 @@ const int Seed::Graphics::DirectX11::LoadTextureFromFont(const int & font_id, co
 	for (unsigned int i = 0; i < tt.size(); ++i)
 	{
 		FT_Long c = tt[i];
-		//ReadNextCode(c, i, text);
-		FT_Load_Char(face, c, FT_LOAD_DEFAULT);
-		FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
+		FT_Load_Char(face, c, FT_LOAD_RENDER);
 
 		max_width += face->glyph->metrics.horiAdvance >> 6;
 
@@ -892,8 +935,7 @@ const int Seed::Graphics::DirectX11::LoadTextureFromFont(const int & font_id, co
 	for (unsigned int i = 0; i < tt.size(); ++i)
 	{
 		FT_Long c = tt[i];
-		FT_Load_Char(face, c, FT_LOAD_DEFAULT);
-		FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
+		FT_Load_Char(face, c, FT_LOAD_RENDER);
 
 		FT_Bitmap * bmp = &face->glyph->bitmap;
 
@@ -917,15 +959,19 @@ const int Seed::Graphics::DirectX11::LoadTextureFromFont(const int & font_id, co
 				img.pixels[tmp] = 0xffui8;
 				tmp = ((pos.x + x) * 4 + 3) + (pos.y + y) * img.rowPitch;
 				if (tmp > img.height * img.rowPitch) continue;
-				img.pixels[tmp] = bmp->buffer[x + y * bmp->pitch];
+				img.pixels[tmp] = bmp->buffer[x + y * bmp->width];
 			}
 		}
 		
 		save.x += face->glyph->metrics.horiAdvance >> 6;
 	}
 
-	image->InitializeFromImage(img);
+	DirectX::ScratchImage ximage;
+	ximage.InitializeFromImage(img);
+	DirectX::GenerateMipMaps(ximage.GetImages(), ximage.GetImageCount(), ximage.GetMetadata(), DirectX::TEX_FILTER_FLAGS::TEX_FILTER_DEFAULT, 0, *image);
 	
+	//image->InitializeFromImage(img);
+
 	texture->size_.x = static_cast<float>(image->GetMetadata().width);
 	texture->size_.y = static_cast<float>(image->GetMetadata().height);
 
@@ -980,7 +1026,7 @@ const int Seed::Graphics::DirectX11::LoadSampler(const Filter & filter, const Ad
 	return this->impl_->sampler_db_.Load(sampler);
 }
 
-const int Seed::Graphics::DirectX11::LoadBlend(const BlendOption & blend_option, const BlendType & src, const BlendType & dest)
+const int Seed::Graphics::DirectX11::LoadBlend(const BlendOption & blend_option, const BlendType & src, const BlendType & dest, const BlendOption & blend_option_a, const BlendType & src_a, const BlendType & dest_a)
 {
 	Microsoft::WRL::ComPtr<ID3D11Device> device;
 
@@ -989,12 +1035,20 @@ const int Seed::Graphics::DirectX11::LoadBlend(const BlendOption & blend_option,
 	auto blend = std::make_unique<Impl::Blend>();
 
 	D3D11_BLEND_DESC desc = {};
+	
+	desc.AlphaToCoverageEnable = false;
+	
+	desc.IndependentBlendEnable = false;
 
 	desc.RenderTarget[0].BlendEnable = true;
 
-	desc.RenderTarget[0].SrcBlend = desc.RenderTarget[0].SrcBlendAlpha = k_blend_type_s[static_cast<unsigned int>(src)];
-	desc.RenderTarget[0].DestBlend = desc.RenderTarget[0].DestBlendAlpha = k_blend_type_s[static_cast<unsigned int>(dest)];
-	desc.RenderTarget[0].BlendOp = desc.RenderTarget[0].BlendOpAlpha = k_blend_option_s[static_cast<unsigned int>(blend_option)];
+	desc.RenderTarget[0].SrcBlend = k_blend_type_s[static_cast<unsigned int>(src)];
+	desc.RenderTarget[0].DestBlend = k_blend_type_s[static_cast<unsigned int>(dest)];
+	desc.RenderTarget[0].BlendOp = k_blend_option_s[static_cast<unsigned int>(blend_option)];
+
+	desc.RenderTarget[0].SrcBlendAlpha = k_blend_type_s[static_cast<unsigned int>(src_a)];
+	desc.RenderTarget[0].DestBlendAlpha = k_blend_type_s[static_cast<unsigned int>(dest_a)];
+	desc.RenderTarget[0].BlendOpAlpha = k_blend_option_s[static_cast<unsigned int>(blend_option_a)];
 
 	desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
